@@ -7,7 +7,8 @@ import 'dart:isolate';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:geofencing/geofencing.dart';
+import 'package:geofencing_example/geolocation.dart';
+import 'package:geofencing_example/location.dart';
 
 void main() => runApp(MyApp());
 
@@ -22,44 +23,31 @@ class _MyAppState extends State<MyApp> {
   double longitude = -122.078818;
   double radius = 150.0;
   ReceivePort port = ReceivePort();
-  final List<GeofenceEvent> triggers = <GeofenceEvent>[
-    GeofenceEvent.enter,
-    GeofenceEvent.dwell,
-    GeofenceEvent.exit
-  ];
-  final AndroidGeofencingSettings androidSettings = AndroidGeofencingSettings(
-      initialTrigger: <GeofenceEvent>[
-        GeofenceEvent.enter,
-        GeofenceEvent.exit,
-        GeofenceEvent.dwell
-      ],
-      loiteringDelay: 1000 * 60);
 
   @override
   void initState() {
     super.initState();
     IsolateNameServer.registerPortWithName(
-        port.sendPort, 'geofencing_send_port');
+        port.sendPort, 'geolocation_send_port');
     port.listen((dynamic data) {
       print('Event: $data');
       setState(() {
-        geofenceState = data;
+        geofenceState = data.toString();
       });
     });
     initPlatformState();
   }
 
-  static void callback(List<String> ids, Location l, GeofenceEvent e) async {
-    print('Fences: $ids Location $l Event: $e');
-    final SendPort send =
-        IsolateNameServer.lookupPortByName('geofencing_send_port');
-    send?.send(e.toString());
+  static void callback(Location l) async {
+    print('Location $l');
+    final SendPort send = IsolateNameServer.lookupPortByName('geolocation_send_port');
+    send?.send(l);
   }
 
   // Platform messages are asynchronous, so we initialize in an async method.
   Future<void> initPlatformState() async {
     print('Initializing...');
-    await GeofencingManager.initialize();
+    await GeoLocationManager.initialize();
     print('Initialization done');
   }
 
@@ -100,11 +88,7 @@ class _MyAppState extends State<MyApp> {
                           if (radius == null) {
                             setState(() => radius = 0.0);
                           }
-                          GeofencingManager.registerGeofence(
-                              GeofenceRegion(
-                                  'mtv', latitude, longitude, radius, triggers,
-                                  androidSettings: androidSettings),
-                              callback);
+                          GeoLocationManager.registerGeoLocation(callback);
                         },
                       ),
                     ),
@@ -112,7 +96,7 @@ class _MyAppState extends State<MyApp> {
                       child: RaisedButton(
                           child: const Text('Unregister'),
                           onPressed: () =>
-                              GeofencingManager.removeGeofenceById('mtv')),
+                              GeoLocationManager.removeGeoLocation()),
                     ),
                     TextField(
                       decoration: const InputDecoration(
